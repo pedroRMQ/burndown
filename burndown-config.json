@@ -1,6 +1,9 @@
 {
     "repository": {
         "pedroRMQ/burndown": {
+            "project_number": 8,
+            "start_date": "2026-04-29",
+            "end_date": "2026-06-01",
             "settings": {
                 "version": 2,
                 "points_label": "size"
@@ -10,10 +13,7 @@
                 "repo_name": "burndown",
                 "project_number": 8,
                 "labels_per_issue_count": 20
-            },
-            "project_number": 8,
-            "start_date": "2026-04-29",
-            "end_date": "2026-06-01"
+            }
         }
     }
 }
