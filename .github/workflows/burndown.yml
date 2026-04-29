@@ -2,61 +2,46 @@ name: Generate Burndown Chart
 
 on:
   workflow_dispatch:
+  schedule:
+    # Roda automaticamente todo dia às 8h (horário de Brasília = 11h UTC)
+    - cron: "0 11 * * 1-5"
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  burndown:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repositório
         uses: actions/checkout@v4
 
-      - name: Clonar ferramenta
-        run: git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
-
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Instalar dependências
-        run: pip install -r ferramenta/requirements.txt
+        run: pip install requests matplotlib numpy
 
-      - name: Preparar config e secrets
+      - name: Gerar gráfico de burndown
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # Copia e renomeia config
-          cp burndown-config.json ferramenta/src/github_projects_burndown_chart/config/config.json
+          python burndown_generator.py \
+            --token   "$GH_TOKEN" \
+            --login   "pedroRMQ" \
+            --project 8 \
+            --start   "2026-04-28" \
+            --end     "2026-05-12" \
+            --points-label "size " \
+            --output  burndown.png
 
-          # Cria secrets.json
-          echo '{ "github_token": "'"$GITHUB_TOKEN"'" }' > ferramenta/src/github_projects_burndown_chart/config/secrets.json
-
-      - name: Gerar gráfico
+      - name: Commitar e publicar gráfico
         run: |
-          cd ferramenta
-          python src/github_projects_burndown_chart/main.py organization Sprint1 --filepath=../burndown.png
-
-      - name: Copiar gráfico
-        run: |
-          FILE=$(find . -name "*.png" | head -n 1)
-
-          if [ -z "$FILE" ]; then
-            echo "Erro: nenhum gráfico foi gerado"
-            exit 1
-          fi
-
-          echo "Imagem encontrada: $FILE"
-          cp "$FILE" burndown.png
-
-      - name: Commitar e enviar
-        run: |
-          git config --global user.name "GitHub Action Bot"
+          git config --global user.name  "GitHub Action Bot"
           git config --global user.email "action@github.com"
-
           git add burndown.png
-          git commit -m "Atualiza burndown" || echo "Sem mudanças"
+          git commit -m "chore: atualiza burndown chart [skip ci]" || echo "Sem mudanças"
           git push
