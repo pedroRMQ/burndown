@@ -25,20 +25,20 @@ jobs:
       - name: Instalar dependências
         run: pip install -r ferramenta/requirements.txt
 
-      - name: Preparar arquivos de configuração
+      - name: Preparar config e secrets
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "Copiando config..."
+          # Copia e renomeia config
           cp burndown-config.json ferramenta/src/github_projects_burndown_chart/config/config.json
 
-          echo "Criando secrets.json..."
+          # Cria secrets.json
           echo '{ "github_token": "'"$GITHUB_TOKEN"'" }' > ferramenta/src/github_projects_burndown_chart/config/secrets.json
 
-      - name: Gerar gráfico
+      - name: Gerar gráfico (CORRETO)
         run: |
           cd ferramenta
-          python src/github_projects_burndown_chart/main.py
+          python src/github_projects_burndown_chart/main.py repository pedroRMQ/burndown
 
       - name: Copiar gráfico
         run: |
