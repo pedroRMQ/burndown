@@ -1,60 +1,69 @@
-name: Gerar Burndown Chart Diário
+name: Generate Burndown Chart
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+    - cron: "0 0 * * *" # roda todo dia (meia-noite UTC)
+  workflow_dispatch: # permite rodar manualmente
 
 permissions:
   contents: write
+  projects: read
 
 jobs:
-  gerar-grafico:
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - name: 1. Baixar o seu Repositório
-        uses: actions/checkout@v4
-        with:
-          path: 'meu-codigo'
-      
-      - name: 2. Baixar a ferramenta thehale
-        uses: actions/checkout@v4
-        with:
-          repository: 'thehale/github-projects-burndown-chart'
-          path: 'ferramenta'
 
-      - name: 3. Preparar o Python
+    steps:
+      - name: Checkout repositório principal
+        uses: actions/checkout@v4
+
+      - name: Clonar ferramenta de burndown
+        run: |
+          git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
+
+      - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
-      - name: 4. Instalar dependências da ferramenta
+      - name: Instalar dependências
+        run: |
+          pip install -r ferramenta/requirements.txt
+
+      - name: Gerar gráfico
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd ferramenta
-          pip install -r requirements.txt
+          python main.py --config ../config.json
 
-      - name: 5. Aplicar suas configurações
+      # 🔍 DEBUG (IMPORTANTE)
+      - name: Verificar arquivos gerados
         run: |
-          cp meu-codigo/burndown-config.json ferramenta/src/github_projects_burndown_chart/config/config.json
-          echo '{"github_token": "${{ secrets.BURNDOWN_PAT }}"}' > ferramenta/src/github_projects_burndown_chart/config/secrets.json
+          echo "Estrutura de arquivos:"
+          ls -R
 
-      - name: 6. Executar a ferramenta
+      # ✅ CORREÇÃO PRINCIPAL AQUI
+      - name: Copiar gráfico
         run: |
-          export PYTHONPATH=$PYTHONPATH:.
-          python src/github_projects_burndown_chart/main.py repository pedroRMQ/burndown
+          # tenta encontrar qualquer PNG gerado
+          FILE=$(find ferramenta -name "*.png" | head -n 1)
 
-      - name: 7. Salvar e enviar o Gráfico
+          if [ -z "$FILE" ]; then
+            echo "Nenhuma imagem encontrada!"
+            exit 1
+          fi
+
+          echo "Imagem encontrada em: $FILE"
+          cp "$FILE" burndown.png
+
+      - name: Commit e push do gráfico
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
-          
-          # Renomeia qualquer PNG gerado para burndown.png
-          mv *.png burndown.png || echo "Imagem não encontrada"
-          
+
           git add burndown.png
-          git commit -m "📊 Atualiza o gráfico de Burndown" || echo "Sem mudanças"
-          git push
-          
-          git add burndown.png
-          git commit -m "📊 Atualiza o gráfico de Burndown" || echo "Sem mudanças"
+
+          git commit -m "Atualiza gráfico de Burndown" || echo "Sem mudanças"
+
           git push
