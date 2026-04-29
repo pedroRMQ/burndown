@@ -4,6 +4,11 @@
             "settings": {
                 "version": 2
             },
+            "query_variables": {
+                "owner": "pedroRMQ",
+                "repo": "burndown",
+                "project": 8
+            },
             "project_number": 8,
             "sprint_start_date": "2026-04-29",
             "sprint_end_date": "2026-06-1"
