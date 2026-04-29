@@ -1,0 +1,59 @@
+name: Gerar Burndown Chart Diário
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Roda todos os dias à meia-noite
+  workflow_dispatch: # Cria um botão para rodar manualmente
+
+permissions:
+  contents: write
+
+jobs:
+  gerar-grafico:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Baixar o seu Repositório
+        uses: actions/checkout@v4
+        with:
+          path: 'meu-codigo'
+
+      - name: 2. Baixar a ferramenta thehale
+        uses: actions/checkout@v4
+        with:
+          repository: 'thehale/github-projects-burndown-chart'
+          path: 'ferramenta'
+
+      - name: 3. Preparar o Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 4. Instalar dependências da ferramenta
+        run: |
+          cd ferramenta
+          pip install -r requirements.txt
+
+      - name: 5. Aplicar suas configurações
+        run: |
+          # Copia o seu config.json para o lugar certo da ferramenta
+          cp meu-codigo/burndown-config.json ferramenta/src/github_projects_burndown_chart/config/config.json
+          
+          # Cria o arquivo de segredos em tempo real de forma segura
+          echo '{"github_token": "${{ secrets.BURNDOWN_PAT }}"}' > ferramenta/src/github_projects_burndown_chart/config/secrets.json
+
+      - name: 6. Executar a ferramenta
+        run: |
+          cd ferramenta
+          python -m src.github_projects_burndown_chart
+
+      - name: 7. Salvar e enviar o Gráfico para o repositório
+        run: |
+          # Pega a imagem gerada (geralmente burndown.png) e joga para o seu repo
+          cp ferramenta/*.png meu-codigo/burndown.png || echo "Imagem não encontrada"
+          
+          cd meu-codigo
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "action@github.com"
+          git add burndown.png
+          git commit -m "📊 Atualiza o gráfico de Burndown da Sprint" || echo "Nenhuma mudança"
+          git push
