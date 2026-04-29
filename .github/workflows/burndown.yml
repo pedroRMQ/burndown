@@ -38,11 +38,10 @@ jobs:
           cp meu-codigo/burndown-config.json ferramenta/src/github_projects_burndown_chart/config/config.json
           echo '{"github_token": "${{ secrets.BURNDOWN_PAT }}"}' > ferramenta/src/github_projects_burndown_chart/config/secrets.json
 
-      - name: 6. Executar a ferramenta (CORRIGIDO)
+      - name: 6. Executar a ferramenta
         run: |
           cd ferramenta
           export PYTHONPATH=$PYTHONPATH:.
-          # Aqui está a correção: apontando direto para o arquivo em vez de usar o módulo
           python src/github_projects_burndown_chart/main.py
 
       - name: 7. Salvar e enviar o Gráfico para o repositório
