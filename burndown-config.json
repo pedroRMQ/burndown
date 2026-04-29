@@ -2,7 +2,8 @@
     "repository": {
         "pedroRMQ/burndown": {
             "settings": {
-                "version": 2
+                "version": 2,
+                "points_label": "size"
             },
             "query_variables": {
                 "repo_owner": "pedroRMQ",
