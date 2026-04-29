@@ -18,32 +18,43 @@ jobs:
         run: |
           git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
 
-      - name: Verificar clone
+      # 🔍 DEBUG REAL — VER O QUE EXISTE
+      - name: Inspecionar ferramenta
         run: |
-          echo "Conteúdo da raiz:"
-          ls -la
-
-          echo "Conteúdo da ferramenta:"
-          ls -la ferramenta
+          echo "Arquivos dentro da ferramenta:"
+          ls -R ferramenta
 
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Instalar ferramenta (modo CLI)
+      - name: Instalar dependências
         run: |
-          pip install ./ferramenta
+          pip install -r ferramenta/requirements.txt
 
-      - name: Gerar gráfico (forma correta)
+      # ✅ EXECUÇÃO CORRETA (SEM ADIVINHAR NOME)
+      - name: Executar script correto
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          github-projects-burndown-chart --config config.json
+          cd ferramenta
 
-      - name: Procurar imagem gerada
+          echo "Procurando script principal..."
+          SCRIPT=$(find . -maxdepth 1 -name "*.py" | head -n 1)
+
+          if [ -z "$SCRIPT" ]; then
+            echo "Erro: nenhum script Python encontrado"
+            exit 1
+          fi
+
+          echo "Executando: $SCRIPT"
+          python "$SCRIPT" --config ../config.json
+
+      # 🔍 VER SE GEROU IMAGEM
+      - name: Procurar imagem
         run: |
-          echo "Buscando PNG..."
+          echo "Arquivos PNG encontrados:"
           find . -name "*.png"
 
       - name: Copiar gráfico
@@ -58,7 +69,7 @@ jobs:
           echo "Imagem encontrada: $FILE"
           cp "$FILE" burndown.png
 
-      - name: Commitar e enviar
+      - name: Commitar
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
