@@ -35,10 +35,10 @@ jobs:
           # Cria secrets.json
           echo '{ "github_token": "'"$GITHUB_TOKEN"'" }' > ferramenta/src/github_projects_burndown_chart/config/secrets.json
 
-      - name: Gerar gráfico (CORRETO)
+      - name: Gerar gráfico
         run: |
           cd ferramenta
-          python src/github_projects_burndown_chart/main.py repository pedroRMQ/burndown
+          python src/github_projects_burndown_chart/main.py organization Sprint1 --filepath=../burndown.png
 
       - name: Copiar gráfico
         run: |
