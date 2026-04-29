@@ -45,11 +45,18 @@ jobs:
           python src/github_projects_burndown_chart/main.py repository pedroRMQ/burndown
           
       - name: 7. Salvar e enviar o Gráfico para o repositório
-        run: |
-          cp ferramenta/*.png meu-codigo/burndown.png || echo "Imagem não encontrada"
-          cd meu-codigo
-          git config --global user.name "GitHub Action Bot"
-          git config --global user.email "action@github.com"
-          git add burndown.png
-          git commit -m "📊 Atualiza o gráfico de Burndown da Sprint" || echo "Nenhuma mudança"
-          git push
+      run: |
+        # Entra na pasta onde o gráfico foi gerado
+        cd ferramenta
+        
+        # Procura por qualquer arquivo PNG gerado (o script costuma salvar na raiz de onde rodou)
+        # E move para a raiz do seu repositório principal com o nome burndown.png
+        ls -la # Isso vai listar os arquivos no log para a gente ter certeza
+        mv *.png ../burndown.png || echo "Aviso: Imagem não encontrada para mover"
+        
+        cd ..
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add burndown.png
+        git commit -m "📊 Atualiza o gráfico de Burndown" || echo "Sem mudanças para salvar"
+        git push
