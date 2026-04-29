@@ -2,11 +2,15 @@
     "repository": {
         "pedroRMQ/burndown": {
             "project_number": 8,
-            "start_date": "2026-04-29",
-            "end_date": "2026-06-01",
+            "start_date": "2026-04-28",
+            "end_date": "2026-05-12",
+            "sprint_start_date": "2026-04-28",
+            "sprint_end_date": "2026-05-12",
             "settings": {
                 "version": 2,
-                "points_label": "size"
+                "points_label": "size",
+                "start_date": "2026-04-28",
+                "end_date": "2026-05-12"
             },
             "query_variables": {
                 "repo_owner": "pedroRMQ",
