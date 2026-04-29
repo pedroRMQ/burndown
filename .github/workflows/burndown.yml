@@ -18,12 +18,12 @@ jobs:
         run: |
           git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
 
-      # 🔍 DEBUG TOTAL (isso resolve 90% dos problemas)
-      - name: Ver estrutura da ferramenta
+      # DEBUG (mantenha isso por enquanto)
+      - name: Ver estrutura
         run: |
-          echo "==== RAIZ ===="
+          echo "=== RAIZ ==="
           ls -la
-          echo "==== FERRAMENTA ===="
+          echo "=== FERRAMENTA ==="
           ls -R ferramenta
 
       - name: Configurar Python
@@ -35,25 +35,13 @@ jobs:
         run: |
           pip install -r ferramenta/requirements.txt
 
-      # ✅ EXECUÇÃO DIRETA (sem adivinhação)
+      # ✅ EXECUÇÃO CORRETA (AGORA DEFINITIVA)
       - name: Gerar gráfico
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           cd ferramenta
-
-          echo "Tentando rodar script padrão..."
-
-          if [ -f "src/burndown.py" ]; then
-            python src/burndown.py --config ../config.json
-          elif [ -f "burndown.py" ]; then
-            python burndown.py --config ../config.json
-          else
-            echo "ERRO: não achei burndown.py"
-            echo "Arquivos disponíveis:"
-            find . -name "*.py"
-            exit 1
-          fi
+          python src/github_projects_burndown_chart/main.py --config ../config.json
 
       - name: Procurar imagem
         run: |
@@ -72,7 +60,7 @@ jobs:
           echo "Imagem encontrada: $FILE"
           cp "$FILE" burndown.png
 
-      - name: Commitar
+      - name: Commitar e enviar
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
