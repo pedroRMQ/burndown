@@ -44,7 +44,9 @@ jobs:
       - name: 6. Executar a ferramenta
         run: |
           cd ferramenta
-          python -m src.github_projects_burndown_chart
+          # Ajuste para garantir que o Python encontre o arquivo de execução correto
+          export PYTHONPATH=$PYTHONPATH:.
+          python src/github_projects_burndown_chart/main.py
 
       - name: 7. Salvar e enviar o Gráfico para o repositório
         run: |
