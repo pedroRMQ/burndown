@@ -2,8 +2,8 @@ name: Gerar Burndown Chart Diário
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Roda todos os dias à meia-noite
-  workflow_dispatch: # Cria um botão para rodar manualmente
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -35,24 +35,19 @@ jobs:
 
       - name: 5. Aplicar suas configurações
         run: |
-          # Copia o seu config.json para o lugar certo da ferramenta
           cp meu-codigo/burndown-config.json ferramenta/src/github_projects_burndown_chart/config/config.json
-          
-          # Cria o arquivo de segredos em tempo real de forma segura
           echo '{"github_token": "${{ secrets.BURNDOWN_PAT }}"}' > ferramenta/src/github_projects_burndown_chart/config/secrets.json
 
-      - name: 6. Executar a ferramenta
+      - name: 6. Executar a ferramenta (CORRIGIDO)
         run: |
           cd ferramenta
-          # Ajuste para garantir que o Python encontre o arquivo de execução correto
           export PYTHONPATH=$PYTHONPATH:.
+          # Aqui está a correção: apontando direto para o arquivo em vez de usar o módulo
           python src/github_projects_burndown_chart/main.py
 
       - name: 7. Salvar e enviar o Gráfico para o repositório
         run: |
-          # Pega a imagem gerada (geralmente burndown.png) e joga para o seu repo
           cp ferramenta/*.png meu-codigo/burndown.png || echo "Imagem não encontrada"
-          
           cd meu-codigo
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
