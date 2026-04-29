@@ -1,1 +1,3 @@
-![Gráfico de Burndown](./burndown.png)
+## Burndown Chart — Sprint Atual
+
+![Burndown](burndown.png)
