@@ -2,22 +2,21 @@ name: Generate Burndown Chart
 
 on:
   schedule:
-    - cron: "0 0 * * *" # roda todo dia (meia-noite UTC)
-  workflow_dispatch: # permite rodar manualmente
+    - cron: "0 0 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
-  projects: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repositório principal
+      - name: Checkout repositório
         uses: actions/checkout@v4
 
-      - name: Clonar ferramenta de burndown
+      - name: Clonar ferramenta
         run: |
           git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
 
@@ -32,32 +31,29 @@ jobs:
 
       - name: Gerar gráfico
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           cd ferramenta
           python main.py --config ../config.json
 
-      # 🔍 DEBUG (IMPORTANTE)
-      - name: Verificar arquivos gerados
+      # DEBUG — MUITO IMPORTANTE
+      - name: Ver arquivos gerados
         run: |
-          echo "Estrutura de arquivos:"
           ls -R
 
-      # ✅ CORREÇÃO PRINCIPAL AQUI
-      - name: Copiar gráfico
+      - name: Copiar gráfico gerado
         run: |
-          # tenta encontrar qualquer PNG gerado
           FILE=$(find ferramenta -name "*.png" | head -n 1)
 
           if [ -z "$FILE" ]; then
-            echo "Nenhuma imagem encontrada!"
+            echo "Erro: Nenhuma imagem foi gerada"
             exit 1
           fi
 
-          echo "Imagem encontrada em: $FILE"
+          echo "Imagem encontrada: $FILE"
           cp "$FILE" burndown.png
 
-      - name: Commit e push do gráfico
+      - name: Commit e push
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
