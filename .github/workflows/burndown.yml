@@ -42,7 +42,9 @@ jobs:
         run: |
           git config --global user.name  "GitHub Action Bot"
           git config --global user.email "action@github.com"
-          git pull --rebase origin main
           git add burndown.png
+          git stash
+          git pull --rebase origin main
+          git stash pop
           git commit -m "chore: atualiza burndown chart [skip ci]" || echo "Sem mudanças"
           git push
