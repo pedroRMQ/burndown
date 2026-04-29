@@ -11,17 +11,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clonar seu repositório
+      - name: Checkout repositório
         uses: actions/checkout@v4
 
-      - name: Clonar ferramenta de burndown
+      - name: Clonar ferramenta
         run: |
           git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
 
-      # 🔍 DEBUG — ver se a pasta foi criada
-      - name: Verificar pasta ferramenta
+      - name: Verificar clone
         run: |
+          echo "Conteúdo da raiz:"
           ls -la
+
+          echo "Conteúdo da ferramenta:"
           ls -la ferramenta
 
       - name: Configurar Python
@@ -29,35 +31,34 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Instalar dependências
+      - name: Instalar ferramenta (modo CLI)
         run: |
-          pip install -r ferramenta/requirements.txt
+          pip install ./ferramenta
 
-      - name: Gerar gráfico
+      - name: Gerar gráfico (forma correta)
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          cd ferramenta
-          python burndown.py --config ../config.json
+          github-projects-burndown-chart --config config.json
 
-      # 🔍 DEBUG — ver onde o PNG foi gerado
-      - name: Procurar imagem
+      - name: Procurar imagem gerada
         run: |
+          echo "Buscando PNG..."
           find . -name "*.png"
 
-      - name: Copiar imagem
+      - name: Copiar gráfico
         run: |
           FILE=$(find . -name "*.png" | head -n 1)
 
           if [ -z "$FILE" ]; then
-            echo "Nenhuma imagem encontrada"
+            echo "Erro: nenhum gráfico foi gerado"
             exit 1
           fi
 
           echo "Imagem encontrada: $FILE"
           cp "$FILE" burndown.png
 
-      - name: Commitar imagem
+      - name: Commitar e enviar
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
