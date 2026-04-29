@@ -1,18 +1,15 @@
 {
-  "repository": {
-    "pedroRMQ/burndown": {
+  "user": {
+    "Sprint1": {
       "project_number": 8,
       "settings": {
         "version": 2,
-        "points_label": "size",
-        "start_date": "2026-04-28",
-        "end_date": "2026-05-12",
+        "points_label": "size ",
         "sprint_start_date": "2026-04-28",
         "sprint_end_date": "2026-05-12"
       },
       "query_variables": {
-        "repo_owner": "pedroRMQ",
-        "repo_name": "burndown",
+        "organization_name": "pedroRMQ",
         "project_number": 8,
         "labels_per_issue_count": 20
       }
