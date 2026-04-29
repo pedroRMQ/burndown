@@ -40,7 +40,6 @@ jobs:
 
       - name: 6. Executar a ferramenta
         run: |
-          # Não usamos 'cd ferramenta' porque ela não existe
           export PYTHONPATH=$PYTHONPATH:.
           python src/github_projects_burndown_chart/main.py repository pedroRMQ/burndown
 
@@ -49,9 +48,12 @@ jobs:
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
           
-          # O script gera um arquivo PNG. Vamos renomeá-lo para burndown.png
-          # (O nome costuma ser algo como pedroRMQ_burndown.png)
+          # Renomeia qualquer PNG gerado para burndown.png
           mv *.png burndown.png || echo "Imagem não encontrada"
+          
+          git add burndown.png
+          git commit -m "📊 Atualiza o gráfico de Burndown" || echo "Sem mudanças"
+          git push
           
           git add burndown.png
           git commit -m "📊 Atualiza o gráfico de Burndown" || echo "Sem mudanças"
