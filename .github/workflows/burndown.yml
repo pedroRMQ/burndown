@@ -12,11 +12,7 @@ jobs:
   gerar-grafico:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Baixar o seu Repositório
-        uses: actions/checkout@v4
-        with:
-          path: 'meu-codigo'
-
+      
       - name: 2. Baixar a ferramenta thehale
         uses: actions/checkout@v4
         with:
