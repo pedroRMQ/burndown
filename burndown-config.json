@@ -10,7 +10,9 @@
                 "version": 2,
                 "points_label": "size",
                 "start_date": "2026-04-28",
-                "end_date": "2026-05-12"
+                "end_date": "2026-05-12",
+                "sprint_start_date": "2026-04-28",
+                "sprint_end_date": "2026-05-12"
             },
             "query_variables": {
                 "repo_owner": "pedroRMQ",
