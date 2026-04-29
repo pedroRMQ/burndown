@@ -42,7 +42,7 @@ jobs:
         run: |
           cd ferramenta
           export PYTHONPATH=$PYTHONPATH:.
-          python src/github_projects_burndown_chart/main.py
+          python src/github_projects_burndown_chart/main.py repository pedroRMQ/burndown
 
       - name: 7. Salvar e enviar o Gráfico para o repositório
         run: |
