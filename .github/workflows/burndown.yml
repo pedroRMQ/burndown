@@ -18,7 +18,7 @@ jobs:
         run: |
           git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
 
-      # DEBUG (mantenha isso por enquanto)
+      # DEBUG (pode remover depois)
       - name: Ver estrutura
         run: |
           echo "=== RAIZ ==="
@@ -35,13 +35,18 @@ jobs:
         run: |
           pip install -r ferramenta/requirements.txt
 
-      # ✅ EXECUÇÃO CORRETA (AGORA DEFINITIVA)
+      # ✅ CORREÇÃO PRINCIPAL AQUI
       - name: Gerar gráfico
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
+          echo "Copiando config..."
+
+          # copia e renomeia corretamente
+          cp burndown-config.json ferramenta/src/github_projects_burndown_chart/config/config.json
+
           cd ferramenta
-          python src/github_projects_burndown_chart/main.py --config ../config.json
+          python src/github_projects_burndown_chart/main.py
 
       - name: Procurar imagem
         run: |
