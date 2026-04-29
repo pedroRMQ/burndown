@@ -18,10 +18,12 @@ jobs:
         run: |
           git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
 
-      # 🔍 DEBUG REAL — VER O QUE EXISTE
-      - name: Inspecionar ferramenta
+      # 🔍 DEBUG TOTAL (isso resolve 90% dos problemas)
+      - name: Ver estrutura da ferramenta
         run: |
-          echo "Arquivos dentro da ferramenta:"
+          echo "==== RAIZ ===="
+          ls -la
+          echo "==== FERRAMENTA ===="
           ls -R ferramenta
 
       - name: Configurar Python
@@ -33,28 +35,29 @@ jobs:
         run: |
           pip install -r ferramenta/requirements.txt
 
-      # ✅ EXECUÇÃO CORRETA (SEM ADIVINHAR NOME)
-      - name: Executar script correto
+      # ✅ EXECUÇÃO DIRETA (sem adivinhação)
+      - name: Gerar gráfico
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           cd ferramenta
 
-          echo "Procurando script principal..."
-          SCRIPT=$(find . -maxdepth 1 -name "*.py" | head -n 1)
+          echo "Tentando rodar script padrão..."
 
-          if [ -z "$SCRIPT" ]; then
-            echo "Erro: nenhum script Python encontrado"
+          if [ -f "src/burndown.py" ]; then
+            python src/burndown.py --config ../config.json
+          elif [ -f "burndown.py" ]; then
+            python burndown.py --config ../config.json
+          else
+            echo "ERRO: não achei burndown.py"
+            echo "Arquivos disponíveis:"
+            find . -name "*.py"
             exit 1
           fi
 
-          echo "Executando: $SCRIPT"
-          python "$SCRIPT" --config ../config.json
-
-      # 🔍 VER SE GEROU IMAGEM
       - name: Procurar imagem
         run: |
-          echo "Arquivos PNG encontrados:"
+          echo "Buscando PNG..."
           find . -name "*.png"
 
       - name: Copiar gráfico
@@ -75,7 +78,5 @@ jobs:
           git config --global user.email "action@github.com"
 
           git add burndown.png
-
           git commit -m "Atualiza burndown" || echo "Sem mudanças"
-
           git push
