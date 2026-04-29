@@ -1,8 +1,6 @@
 name: Generate Burndown Chart
 
 on:
-  schedule:
-    - cron: "0 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,12 +11,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repositório
+      - name: Clonar seu repositório
         uses: actions/checkout@v4
 
-      - name: Clonar ferramenta
+      - name: Clonar ferramenta de burndown
         run: |
           git clone https://github.com/thehale/github-projects-burndown-chart.git ferramenta
+
+      # 🔍 DEBUG — ver se a pasta foi criada
+      - name: Verificar pasta ferramenta
+        run: |
+          ls -la
+          ls -la ferramenta
 
       - name: Configurar Python
         uses: actions/setup-python@v5
@@ -34,32 +38,32 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           cd ferramenta
-          python main.py --config ../config.json
+          python burndown.py --config ../config.json
 
-      # DEBUG — MUITO IMPORTANTE
-      - name: Ver arquivos gerados
+      # 🔍 DEBUG — ver onde o PNG foi gerado
+      - name: Procurar imagem
         run: |
-          ls -R
+          find . -name "*.png"
 
-      - name: Copiar gráfico gerado
+      - name: Copiar imagem
         run: |
-          FILE=$(find ferramenta -name "*.png" | head -n 1)
+          FILE=$(find . -name "*.png" | head -n 1)
 
           if [ -z "$FILE" ]; then
-            echo "Erro: Nenhuma imagem foi gerada"
+            echo "Nenhuma imagem encontrada"
             exit 1
           fi
 
           echo "Imagem encontrada: $FILE"
           cp "$FILE" burndown.png
 
-      - name: Commit e push
+      - name: Commitar imagem
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
 
           git add burndown.png
 
-          git commit -m "Atualiza gráfico de Burndown" || echo "Sem mudanças"
+          git commit -m "Atualiza burndown" || echo "Sem mudanças"
 
           git push
