@@ -12,8 +12,8 @@
                 "labels_per_issue_count": 20
             },
             "project_number": 8,
-            "sprint_start_date": "2026-04-29",
-            "sprint_end_date": "2026-06-1"
+            "start_date": "2026-04-29",
+            "end_date": "2026-06-01"
         }
     }
 }
