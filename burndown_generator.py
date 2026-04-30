@@ -162,6 +162,12 @@ def build_burndown(items, sprint_start, sprint_end, points_prefix):
             pts = 1
 
         done_at = get_done_at(item)
+
+        # Ignora conclusoes feitas ANTES do inicio da sprint
+        if done_at is not None and done_at < sprint_start:
+            print(f"  AVISO: issue concluida antes da sprint ({done_at.date()}), tratando como pendente.")
+            done_at = None
+
         issues.append({"points": pts, "done_at": done_at})
 
     total_points = sum(i["points"] for i in issues)
@@ -174,21 +180,7 @@ def build_burndown(items, sprint_start, sprint_end, points_prefix):
         c = item["content"]
         print(f"    #{c.get('number')} '{c.get('title')}' | status={item['status']} | done_at={get_done_at(item)}")
 
-    # Serie real: inicio da sprint ate hoje
-    real_dates = []
-    real_vals  = []
-    current = sprint_start
-    while current.date() <= min(sprint_end.date(), today.date()):
-        remaining = sum(
-            i["points"]
-            for i in issues
-            if i["done_at"] is None or i["done_at"].date() > current.date()
-        )
-        real_dates.append(current.date())
-        real_vals.append(remaining)
-        current += timedelta(days=1)
-
-    # Linha ideal: toda a sprint
+    # Linha ideal: toda a sprint (sempre gerada, mesmo antes de comecar)
     num_days = (sprint_end.date() - sprint_start.date()).days
     all_dates  = []
     ideal_vals = []
@@ -199,6 +191,21 @@ def build_burndown(items, sprint_start, sprint_end, points_prefix):
         all_dates.append(current.date())
         ideal_vals.append(max(0.0, ideal))
         current += timedelta(days=1)
+
+    # Serie real: so plota se a sprint ja comecou
+    real_dates = []
+    real_vals  = []
+    if today >= sprint_start:
+        current = sprint_start
+        while current.date() <= min(sprint_end.date(), today.date()):
+            remaining = sum(
+                i["points"]
+                for i in issues
+                if i["done_at"] is None or i["done_at"].date() > current.date()
+            )
+            real_dates.append(current.date())
+            real_vals.append(remaining)
+            current += timedelta(days=1)
 
     return real_dates, real_vals, all_dates, ideal_vals, total_points
 
@@ -281,8 +288,8 @@ def main():
     )
 
     if not real_dates:
-        print("AVISO: Sprint ainda nao comecou ou sem dados.")
-        sys.exit(1)
+        print("  Sprint ainda nao comecou — gerando grafico apenas com linha ideal.")
+
 
     plot_burndown(title, real_dates, real_vals, all_dates, ideal_vals, total, args.output)
     print("Concluido!")
