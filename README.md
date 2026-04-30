@@ -1,3 +1,5 @@
-## Burndown Chart — Sprint Atual
+## Sprint 1 (28/04 – 12/05)
+![Burndown Sprint 1](burndown_sprint1.png)
 
-![Burndown](burndown.png)
+## Sprint 2 (30/05 – 10/06)
+![Burndown Sprint 2](burndown_sprint2.png)
