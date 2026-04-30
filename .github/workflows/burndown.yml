@@ -4,6 +4,13 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 11 * * 1-5"
+  issues:
+    types:
+      - opened
+      - closed
+      - reopened
+      - labeled
+      - unlabeled
 
 permissions:
   contents: write
