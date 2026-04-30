@@ -3,7 +3,6 @@ name: Generate Burndown Chart
 on:
   workflow_dispatch:
   schedule:
-    # Roda automaticamente todo dia às 8h (horário de Brasília = 11h UTC)
     - cron: "0 11 * * 1-5"
 
 permissions:
