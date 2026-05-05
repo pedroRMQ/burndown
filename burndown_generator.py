@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Gerador de Burndown Chart para GitHub Projects V2 (projetos de usuário)
+Gerador de Burndown Chart para GitHub Projects V2
+- Suporta projetos de usuário (--login) e de organização (--org)
 - Mostra toda a sprint no eixo X (incluindo dias futuros)
-- Detecta "Done" pelo campo Status do Projects V2 (não pelo state da issue)
+- Detecta "Done" pelo campo Status do Projects V2
 """
 
 import sys
@@ -17,6 +18,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 
+# ─── Queries GraphQL ──────────────────────────────────────────────────────────
+
 USER_PROJECT_QUERY = """
 query($login: String!, $projectNumber: Int!, $cursor: String) {
   user(login: $login) {
@@ -26,7 +29,7 @@ query($login: String!, $projectNumber: Int!, $cursor: String) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id
-          fieldValues(first: 20) {
+          fieldValues(first: 100) {
             nodes {
               ... on ProjectV2ItemFieldSingleSelectValue {
                 name
@@ -42,7 +45,44 @@ query($login: String!, $projectNumber: Int!, $cursor: String) {
               state
               closedAt
               createdAt
-              labels(first: 20) {
+              labels(first: 100) {
+                nodes { name }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+ORG_PROJECT_QUERY = """
+query($org: String!, $projectNumber: Int!, $cursor: String) {
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      title
+      items(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id
+          fieldValues(first: 100) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { ... on ProjectV2SingleSelectField { name } }
+                updatedAt
+              }
+            }
+          }
+          content {
+            ... on Issue {
+              number
+              title
+              state
+              closedAt
+              createdAt
+              labels(first: 100) {
                 nodes { name }
               }
             }
@@ -55,10 +95,15 @@ query($login: String!, $projectNumber: Int!, $cursor: String) {
 """
 
 
+# ─── GraphQL helper ───────────────────────────────────────────────────────────
+
 def graphql(token, query, variables):
     resp = requests.post(
         "https://api.github.com/graphql",
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
         json={"query": query, "variables": variables},
         timeout=30,
     )
@@ -69,18 +114,32 @@ def graphql(token, query, variables):
     return data
 
 
-def fetch_all_items(token, login, project_number):
+# ─── Busca itens do projeto ───────────────────────────────────────────────────
+
+def fetch_all_items(token, login, project_number, org=None):
+    """
+    Busca todos os itens do projeto.
+    Se `org` for fornecido, usa a query de organização;
+    caso contrário usa a query de usuário.
+    """
     items = []
     cursor = None
     title = ""
 
     while True:
-        variables = {"login": login, "projectNumber": project_number}
-        if cursor:
-            variables["cursor"] = cursor
+        if org:
+            variables = {"org": org, "projectNumber": project_number}
+            if cursor:
+                variables["cursor"] = cursor
+            data = graphql(token, ORG_PROJECT_QUERY, variables)
+            project = data["data"]["organization"]["projectV2"]
+        else:
+            variables = {"login": login, "projectNumber": project_number}
+            if cursor:
+                variables["cursor"] = cursor
+            data = graphql(token, USER_PROJECT_QUERY, variables)
+            project = data["data"]["user"]["projectV2"]
 
-        data = graphql(token, USER_PROJECT_QUERY, variables)
-        project = data["data"]["user"]["projectV2"]
         title = project["title"]
         page = project["items"]
 
@@ -111,6 +170,8 @@ def fetch_all_items(token, login, project_number):
     return title, items
 
 
+# ─── Utilitários ──────────────────────────────────────────────────────────────
+
 def parse_points(labels, prefix):
     total = 0
     for lbl in labels:
@@ -125,6 +186,15 @@ def parse_points(labels, prefix):
 
 
 def get_done_at(item):
+    """
+    Retorna o datetime em que a issue foi concluída, ou None se ainda pendente.
+
+    Prioridade:
+    1. Status == "done" no board + status_updated_at
+    2. Status == "done" no board + closedAt como fallback
+    3. Status == "done" no board sem nenhum timestamp → agora (evita tratar como pendente)
+    4. Issue fechada no GitHub (state == CLOSED) mas sem status "done" explícito
+    """
     status = (item.get("status") or "").strip().lower()
     content = item["content"]
 
@@ -132,7 +202,13 @@ def get_done_at(item):
         raw = item.get("status_updated_at")
         if raw:
             return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        # Done no board mas sem timestamp de status: usa closedAt
+        if content.get("closedAt"):
+            return datetime.fromisoformat(content["closedAt"].replace("Z", "+00:00"))
+        # Último recurso: considera concluída agora
+        return datetime.now(timezone.utc)
 
+    # Fechada no GitHub mas sem status "done" explícito no board
     if content.get("state") == "CLOSED" and content.get("closedAt"):
         return datetime.fromisoformat(content["closedAt"].replace("Z", "+00:00"))
 
@@ -145,44 +221,62 @@ def to_utc(dt):
     return dt.astimezone(timezone.utc)
 
 
+def local_date(dt):
+    """Converte um datetime UTC para a data no fuso horário local da máquina.
+    Ex: 2026-05-05 01:18 UTC → 2026-05-04 em Recife (UTC-3).
+    """
+    return dt.astimezone().date()
+
+
+# ─── Construção do burndown ───────────────────────────────────────────────────
+
 def build_burndown(items, sprint_start, sprint_end, points_prefix):
     sprint_start = to_utc(sprint_start)
     sprint_end   = to_utc(sprint_end)
-    today        = datetime.now(timezone.utc)
+    today        = datetime.now().astimezone()
 
     issues = []
     for item in items:
         content = item["content"]
+
+        # Ignora drafts e PRs (sem state)
         if content.get("state") is None:
+            print(f"  IGNORADO: item sem state (draft ou PR) — '{content.get('title', '?')}'")
             continue
 
         labels = content.get("labels", {}).get("nodes", [])
         pts = parse_points(labels, points_prefix) if points_prefix else 1
         if pts == 0:
             pts = 1
+            print(f"  AVISO: issue #{content.get('number')} sem label de pontos, contando como 1")
 
         done_at = get_done_at(item)
 
-        # Ignora conclusoes feitas ANTES do inicio da sprint
-        if done_at is not None and done_at < sprint_start:
-            print(f"  AVISO: issue concluida antes da sprint ({done_at.date()}), tratando como pendente.")
+        # Ignora conclusões feitas ANTES do início da sprint
+        if done_at is not None and local_date(done_at) < sprint_start.date():
+            print(
+                f"  AVISO: #{content.get('number')} concluída antes da sprint "
+                f"({local_date(done_at)}), tratando como pendente."
+            )
             done_at = None
 
         issues.append({"points": pts, "done_at": done_at})
+        print(
+            f"    #{content.get('number')} '{content.get('title')}' "
+            f"| status={item['status']} | pts={pts} | done_at={done_at}"
+            + (f" (local: {local_date(done_at)})" if done_at else "")
+        )
 
     total_points = sum(i["points"] for i in issues)
     done_count   = sum(1 for i in issues if i["done_at"] is not None)
 
     print(f"  Issues encontradas : {len(issues)}")
-    print(f"  Issues concluidas  : {done_count}")
+    print(f"  Issues concluídas  : {done_count}")
     print(f"  Total de pontos    : {total_points}")
-    for item in items:
-        c = item["content"]
-        print(f"    #{c.get('number')} '{c.get('title')}' | status={item['status']} | done_at={get_done_at(item)}")
 
-    # Linha ideal: toda a sprint (sempre gerada, mesmo antes de comecar)
-    num_days = (sprint_end.date() - sprint_start.date()).days
-    all_dates  = []
+    # Linha ideal: toda a sprint
+    num_days  = (sprint_end.date() - sprint_start.date()).days
+    all_dates = []
     ideal_vals = []
     current = sprint_start
     while current.date() <= sprint_end.date():
@@ -192,23 +286,31 @@ def build_burndown(items, sprint_start, sprint_end, points_prefix):
         ideal_vals.append(max(0.0, ideal))
         current += timedelta(days=1)
 
-    # Serie real: so plota se a sprint ja comecou
+    # Série real: só plota se a sprint já começou.
+    # Usa local_date(done_at) para converter UTC → fuso local antes de comparar,
+    # evitando que tarefas concluídas à noite apareçam no dia errado.
     real_dates = []
     real_vals  = []
-    if today >= sprint_start:
+    if today.date() >= sprint_start.date():
         current = sprint_start
         while current.date() <= min(sprint_end.date(), today.date()):
             remaining = sum(
                 i["points"]
                 for i in issues
-                if i["done_at"] is None or i["done_at"].date() > current.date()
+                if i["done_at"] is None or local_date(i["done_at"]) > current.date()
             )
             real_dates.append(current.date())
             real_vals.append(remaining)
             current += timedelta(days=1)
 
+        # Sobrescreve o último ponto (hoje) com o estado real atual:
+        # desconta tudo que tem done_at definido, independente da hora.
+        real_vals[-1] = sum(i["points"] for i in issues if i["done_at"] is None)
+
     return real_dates, real_vals, all_dates, ideal_vals, total_points
 
+
+# ─── Plot ─────────────────────────────────────────────────────────────────────
 
 def plot_burndown(title, real_dates, real_vals, all_dates, ideal_vals, total_points, output_path):
     fig, ax = plt.subplots(figsize=(13, 6))
@@ -217,20 +319,23 @@ def plot_burndown(title, real_dates, real_vals, all_dates, ideal_vals, total_poi
 
     real_nums  = mdates.date2num(real_dates)
     all_nums   = mdates.date2num(all_dates)
-    today_num  = mdates.date2num([datetime.now().date()])[0]
+    today_num  = mdates.date2num([datetime.now().astimezone().date()])[0]
 
+    # Preenchimento azul transparente contínuo (sem formato de degrau)
     if real_vals:
-        ax.fill_between(real_nums, real_vals, alpha=0.12, color="#58a6ff", step="post")
+        ax.fill_between(real_nums, real_vals, alpha=0.12, color="#58a6ff")
 
+    # Linha tracejada ideal
     ax.plot(all_nums, ideal_vals, "--", color="#8b949e",
             linewidth=1.8, label="Ideal", alpha=0.85, zorder=2)
 
+    # Linha real desenhada em diagonal, conectando ponto a ponto
     if real_vals:
-        ax.step(real_nums, real_vals, where="post",
+        ax.plot(real_nums, real_vals,
                 color="#58a6ff", linewidth=2.5,
-                label="Real (pontos restantes)",
                 marker="o", markersize=6,
-                markerfacecolor="#58a6ff", zorder=3)
+                markerfacecolor="#58a6ff",
+                label="Real (pontos restantes)", zorder=3)
 
     ax.axvline(today_num, color="#f78166", linestyle=":",
                linewidth=1.8, label="Hoje", alpha=0.95, zorder=4)
@@ -247,7 +352,7 @@ def plot_burndown(title, real_dates, real_vals, all_dates, ideal_vals, total_poi
 
     ax.set_xlabel("Data", color="#8b949e", fontsize=11)
     ax.set_ylabel("Pontos Restantes", color="#8b949e", fontsize=11)
-    ax.set_title(f"Burndown Chart - {title}",
+    ax.set_title(f"Burndown Chart — {title}",
                  color="#e6edf3", fontsize=14, fontweight="bold", pad=15)
 
     for spine in ["top", "right"]:
@@ -262,25 +367,38 @@ def plot_burndown(title, real_dates, real_vals, all_dates, ideal_vals, total_poi
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close()
-    print(f"  Grafico salvo em: {output_path}")
+    print(f"  Gráfico salvo em: {output_path}")
 
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--token",        required=True)
-    parser.add_argument("--login",        required=True)
-    parser.add_argument("--project",      required=True, type=int)
-    parser.add_argument("--start",        required=True)
-    parser.add_argument("--end",          required=True)
-    parser.add_argument("--points-label", default="size ")
-    parser.add_argument("--output",       default="burndown.png")
+    parser = argparse.ArgumentParser(
+        description="Gera burndown chart a partir de um GitHub Project V2"
+    )
+    parser.add_argument("--token",        required=True,  help="GitHub personal access token")
+    parser.add_argument("--login",        required=True,  help="Login do usuário GitHub (dono do projeto de usuário)")
+    parser.add_argument("--org",          default=None,   help="Login da organização (use quando o projeto for de uma org)")
+    parser.add_argument("--project",      required=True,  type=int, help="Número do projeto no GitHub")
+    parser.add_argument("--start",        required=True,  help="Início da sprint (YYYY-MM-DD)")
+    parser.add_argument("--end",          required=True,  help="Fim da sprint (YYYY-MM-DD)")
+    parser.add_argument("--points-label", default="size ", help="Prefixo do label de pontos (ex: 'size ')")
+    parser.add_argument("--output",       default="burndown.png", help="Caminho do arquivo de saída")
     args = parser.parse_args()
 
     sprint_start = datetime.strptime(args.start, "%Y-%m-%d")
     sprint_end   = datetime.strptime(args.end,   "%Y-%m-%d")
 
-    print(f"Buscando projeto #{args.project} do usuario '{args.login}'...")
-    title, items = fetch_all_items(args.token, args.login, args.project)
+    if sprint_start >= sprint_end:
+        print("ERRO: --start deve ser anterior a --end")
+        sys.exit(1)
+
+    owner_label = args.org if args.org else args.login
+    print(f"Buscando projeto #{args.project} de '{owner_label}'...")
+
+    title, items = fetch_all_items(
+        args.token, args.login, args.project, org=args.org
+    )
     print(f"  Projeto: '{title}'")
 
     real_dates, real_vals, all_dates, ideal_vals, total = build_burndown(
@@ -288,11 +406,10 @@ def main():
     )
 
     if not real_dates:
-        print("  Sprint ainda nao comecou — gerando grafico apenas com linha ideal.")
-
+        print("  Sprint ainda não começou — gerando gráfico apenas com linha ideal.")
 
     plot_burndown(title, real_dates, real_vals, all_dates, ideal_vals, total, args.output)
-    print("Concluido!")
+    print("Concluído!")
 
 
 if __name__ == "__main__":
