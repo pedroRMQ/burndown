@@ -1,0 +1,18 @@
+# Configuração das sprints (milestones) para o gerador de burndown.
+#
+# Cada item representa uma sprint:
+#   - milestone: precisa ser EXATAMENTE o título do milestone no GitHub (ex: H1, H2)
+#   - start:     data de início da sprint (YYYY-MM-DD), definida manualmente por você
+#
+# A data de TÉRMINO de cada sprint é lida automaticamente do campo
+# "due date" do milestone no GitHub — não precisa repetir aqui.
+#
+# Para adicionar uma nova sprint, basta criar o milestone no GitHub
+# (com due date definida) e adicionar uma entrada abaixo.
+
+sprints:
+  - milestone: Sprint 1
+    start: "2026-04-28"
+
+  - milestone: Sprint 2
+    start: "2026-05-30"

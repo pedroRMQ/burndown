@@ -1,0 +1,50 @@
+name: Burndown Chart
+
+on:
+  schedule:
+    # Roda 1x por dia às 09:00 UTC (06:00 em Recife, UTC-3).
+    # Ajuste o horário se quiser outro momento do dia.
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}   # permite rodar manualmente pela aba "Actions"
+
+permissions:
+  contents: write   # necessário para commitar os PNGs e o README
+
+jobs:
+  burndown:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install requests matplotlib pyyaml
+
+      - name: Gerar gráficos de burndown
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          python burndown/scripts/burndown.py \
+            --token "$GH_TOKEN" \
+            --owner "${{ github.repository_owner }}" \
+            --repo "${{ github.event.repository.name }}" \
+            --config burndown/scripts/sprints.yml \
+            --output-dir burndown
+
+      - name: Atualizar README
+        run: python burndown/scripts/update_readme.py --output-dir burndown --readme README.md
+
+      - name: Commitar alterações
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add burndown/ README.md
+          git diff --cached --quiet && echo "Nada para commitar." && exit 0
+          git commit -m "chore: atualiza burndown charts [skip ci]"
+          git push
