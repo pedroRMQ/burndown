@@ -37,9 +37,6 @@ jobs:
             --config burndown/scripts/sprints.yml \
             --output-dir burndown
 
-      - name: Atualizar README
-        run: python burndown/scripts/update_readme.py --output-dir burndown --readme README.md
-
       - name: Commitar alterações
         run: |
           git config user.name "github-actions[bot]"

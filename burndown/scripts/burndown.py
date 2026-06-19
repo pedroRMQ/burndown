@@ -21,6 +21,8 @@ Uso (todas as sprints definidas em sprints.yml):
 import sys
 import json
 import argparse
+import re
+import unicodedata
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -29,6 +31,26 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+
+
+# ─── Slug seguro para nomes de arquivo ────────────────────────────────────────
+
+def slugify(name):
+    """
+    Converte o título do milestone em um nome de arquivo seguro:
+    remove acentos, troca espaços por hífen, remove caracteres especiais.
+    'Sprint 1'   -> 'Sprint-1'
+    'Sprint Um'  -> 'Sprint-Um'
+    'Início H1'  -> 'Inicio-H1'
+    O título original (com espaço/acento) continua sendo usado normalmente
+    para exibição (headings, texto do link) — só o NOME DO ARQUIVO precisa
+    ser seguro.
+    """
+    slug = name.strip()
+    slug = unicodedata.normalize("NFKD", slug).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"\s+", "-", slug)
+    slug = re.sub(r"[^A-Za-z0-9_-]", "", slug)
+    return slug or "sprint"
 
 
 # ─── Query GraphQL: issues de um milestone específico ────────────────────────
@@ -433,12 +455,13 @@ def main():
         for sprint in sprints:
             name = sprint["milestone"]
             start = sprint["start"]
-            output_path = f"{args.output_dir}/{name}.png"
+            file_slug = slugify(name)
+            output_path = f"{args.output_dir}/{file_slug}.png"
             ok = run_one_sprint(
                 args.token, args.owner, args.repo, name, start, args.points_label, output_path
             )
             if ok:
-                generated.append(name)
+                generated.append({"title": name, "file": file_slug})
 
         # Lista de gráficos gerados, para o passo de atualizar o README
         with open(f"{args.output_dir}/_generated.json", "w", encoding="utf-8") as f:
