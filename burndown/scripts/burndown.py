@@ -277,14 +277,21 @@ def build_burndown(issues_raw, sprint_start, sprint_end, points_prefix):
         delay_dates.append(sprint_end.date())
         delay_vals.append(start_value)
 
+        # Só registra um novo ponto quando o valor de fato muda (ou no último
+        # dia, pra garantir que o ponto final apareça). Isso faz a linha ir
+        # direto de uma conclusão pra outra, em vez de ficar "achatada" com
+        # um marcador por dia sem mudança e só cair de vez no fim.
+        prev_value = start_value
         current = sprint_end.date() + timedelta(days=1)
         while current <= last_done_date:
             remaining = sum(
                 i["points"] for i in pending_at_end
                 if i["done_at"] is None or local_date(i["done_at"]) > current
             )
-            delay_dates.append(current)
-            delay_vals.append(remaining)
+            if remaining != prev_value or current == last_done_date:
+                delay_dates.append(current)
+                delay_vals.append(remaining)
+                prev_value = remaining
             current += timedelta(days=1)
 
     return real_dates, real_vals, all_dates, ideal_vals, total_points, delay_dates, delay_vals
@@ -316,6 +323,7 @@ def plot_burndown(title, real_dates, real_vals, all_dates, ideal_vals, total_poi
 
     if delay_vals:
         delay_nums = mdates.date2num(delay_dates)
+        ax.fill_between(delay_nums, delay_vals, alpha=0.12, color="#f85149")
         ax.plot(delay_nums, delay_vals,
                 color="#f85149", linewidth=2.5,
                 marker="o", markersize=6,
